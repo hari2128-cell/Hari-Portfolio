@@ -8,6 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=yes">
     <title>Hari Sakthivel | The Engineer's Odyssey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -50,7 +52,7 @@
             <div class="hero-composition">
                 <div class="hero-image-wrapper" data-parallax="0.04">
                     <div class="hero-image-container">
-                        <img src="assets/images/hero-portrait.jpeg" alt="Hari Sakthivel" class="hero-main-image" onerror="this.style.display='none';this.parentElement.querySelector('.hero-image-fallback').style.display='flex';">
+                        <img src="assets/images/hero-portrait.jpeg" alt="Hari Sakthivel" class="hero-main-image" fetchpriority="high" onerror="this.style.display='none';this.parentElement.querySelector('.hero-image-fallback').style.display='flex';">
                         <div class="hero-image-fallback" style="display:none;"><div class="fallback-monogram">HS</div></div>
                         <div class="hero-image-overlay"></div>
                         <div class="hero-image-border"></div>
@@ -101,7 +103,7 @@
                     <div class="identity-dossier-frame">
                         <div class="dossier-tag">PERSONNEL FILE · MIT ECE</div>
                         <div class="identity-image-frame">
-                            <img src="assets/images/engineer-portrait.jpeg" alt="Hari S Portrait" class="identity-image" onerror="this.style.display='none';this.parentElement.querySelector('.identity-fallback').style.display='flex';">
+                            <img src="assets/images/engineer-portrait.jpeg" alt="Hari S Portrait" class="identity-image" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.identity-fallback').style.display='flex';">
                             <div class="identity-fallback" style="display:none;"><span>HS</span></div>
                             <div class="identity-frame-accent"></div>
                         </div>
@@ -298,16 +300,42 @@
             <div class="journey-road-container" id="journeyFuture">
                 <svg class="journey-road-svg" id="journeyRoadSvg" preserveAspectRatio="none">
                     <defs>
-                        <filter id="roadGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <filter id="roadGlow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <linearGradient id="roadBedGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#2a2826"/>
+                            <stop offset="100%" stop-color="#1a1816"/>
+                        </linearGradient>
                     </defs>
-                    <path id="journeyRoadBg" class="road-path-bg" fill="none"/>
-                    <path id="journeyRoadDraw" class="road-path-draw" fill="none" filter="url(#roadGlow)"/>
+                    <path id="journeyRoadBed" class="road-bed" fill="none"/>
+                    <path id="journeyRoadDash" class="road-dash" fill="none"/>
+                    <path id="journeyRoadDraw" class="road-draw-line" fill="none" filter="url(#roadGlow)"/>
+                    <g id="journeyCar" class="journey-car" opacity="0">
+                        <path d="M -2 -8 L 8 -8 L 11 3 L 1 3 Z" class="car-door"/>
+                        <rect x="-14" y="-8" width="28" height="14" rx="3" class="car-body"/>
+                        <rect x="-6" y="-12" width="14" height="6" rx="2" class="car-cabin"/>
+                        <rect x="-1" y="-10" width="7" height="4" rx="1" class="car-window"/>
+                        <circle cx="13" cy="-1" r="1.5" class="car-headlight"/>
+                        <circle cx="-8" cy="6" r="4" class="car-wheel"/>
+                        <circle cx="8" cy="6" r="4" class="car-wheel"/>
+                    </g>
+                    <g id="journeyHero" class="journey-hero" opacity="0">
+                        <circle cx="0" cy="-10" r="5" class="hero-head"/>
+                        <rect x="-4" y="-5" width="8" height="13" rx="2" class="hero-body"/>
+                        <path d="M -4 -1 L -10 4" class="hero-arm hero-arm-left"/>
+                        <path d="M 4 -1 L 9 5" class="hero-arm hero-arm-right"/>
+                        <path d="M -2 8 L -6 17" class="hero-leg hero-leg-left"/>
+                        <path d="M 2 8 L 6 17" class="hero-leg hero-leg-right"/>
+                    </g>
                 </svg>
                 <div class="journey-milestones" id="journeyTimeline"></div>
-                <div class="journey-finish-line" id="journeyFinishLine">
-                    <div class="finish-emblem">🏆</div>
-                    <div class="finish-text">THE ODYSSEY CONTINUES...</div>
-                    <div class="finish-sub">MORE HACKATHONS. MORE IMPACT. MORE GLORY.</div>
+                <div class="journey-finale" id="journeyFinale">
+                    <div class="finale-trophy-pedestal" id="finaleTrophy">
+                        <div class="trophy-glow"></div>
+                        <div class="trophy-icon">🏆</div>
+                    </div>
+                    <div class="finale-confetti" id="finaleConfetti" aria-hidden="true"></div>
+                    <h2 class="odyssey-continues" id="odysseyContinues">The Odyssey Continues</h2>
+                    <p class="odyssey-sub">MORE HACKATHONS · MORE IMPACT · MORE GLORY</p>
                 </div>
             </div>
         </section>

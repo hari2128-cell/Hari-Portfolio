@@ -8,14 +8,14 @@ class DivineCursor {
         this.ring = document.getElementById('cursor-ring');
         this.rune = document.getElementById('cursor-rune');
         this.trailCanvas = document.getElementById('cursor-trail');
-        this.trailCtx = this.trailCanvas.getContext('2d');
+        this.trailCtx = this.trailCanvas?.getContext('2d');
         this.mouseX = window.innerWidth / 2;
         this.mouseY = window.innerHeight / 2;
         this.ringX = this.mouseX;
         this.ringY = this.mouseY;
         this.isHovering = false;
         this.trail = [];
-        this.maxTrail = 6;
+        this.maxTrail = 10;
         this.init();
     }
     init() {
@@ -33,7 +33,7 @@ class DivineCursor {
         document.addEventListener('mousedown', () => this.dot?.classList.add('clicking'));
         document.addEventListener('mouseup', () => this.dot?.classList.remove('clicking'));
         window.addEventListener('resize', () => this.resizeTrail());
-        const hoverTargets = 'a, button, .arsenal-chest, .lab-rail-item, .learning-satellite, .work-cinema-card, .beyond-card, .edu-entry, .detail-item, .epi-link, .hud-dot, .hero-cta, .road-box';
+        const hoverTargets = 'a, button, .arsenal-chest, .lab-rail-item, .learning-satellite, .work-cinema-card, .beyond-card, .edu-entry, .detail-item, .epi-link, .hud-dot, .hero-cta, .achievement-house';
         document.addEventListener('mouseover', (e) => {
             if (e.target.closest(hoverTargets)) {
                 this.isHovering = true;
@@ -58,8 +58,30 @@ class DivineCursor {
         this.ringX += (this.mouseX - this.ringX) * 0.08;
         this.ringY += (this.mouseY - this.ringY) * 0.08;
         const x = this.mouseX, y = this.mouseY;
-        if (this.dot) this.dot.style.transform = `translate3d(${x - 3}px, ${y - 3}px, 0)`;
-        if (this.ring) this.ring.style.transform = `translate3d(${this.ringX - 18}px, ${this.ringY - 18}px, 0)`;
+        if (this.trailCtx) {
+            this.trail.push({ x, y, life: 1 });
+            if (this.trail.length > this.maxTrail) this.trail.shift();
+            this.trailCtx.clearRect(0, 0, this.trailCanvas.width, this.trailCanvas.height);
+            this.trail.forEach((p, i) => {
+                p.life *= 0.86;
+                const alpha = p.life * (i / this.trail.length) * 0.34;
+                if (i > 0) {
+                    const prev = this.trail[i - 1];
+                    this.trailCtx.beginPath();
+                    this.trailCtx.moveTo(prev.x, prev.y);
+                    this.trailCtx.lineTo(p.x, p.y);
+                    this.trailCtx.strokeStyle = `rgba(196, 164, 90, ${alpha * 0.7})`;
+                    this.trailCtx.lineWidth = 1;
+                    this.trailCtx.stroke();
+                }
+                this.trailCtx.beginPath();
+                this.trailCtx.arc(p.x, p.y, 1.6 + i * 0.15, 0, Math.PI * 2);
+                this.trailCtx.fillStyle = `rgba(77, 232, 255, ${alpha * 0.85})`;
+                this.trailCtx.fill();
+            });
+        }
+        if (this.dot) this.dot.style.transform = `translate3d(${x - 5}px, ${y - 5}px, 0) rotate(45deg)`;
+        if (this.ring) this.ring.style.transform = `translate3d(${this.ringX - 17}px, ${this.ringY - 17}px, 0)`;
         if (this.rune && this.isHovering) {
             this.rune.style.transform = `translate3d(${this.ringX}px, ${this.ringY - 28}px, 0) translate(-50%, -50%)`;
         }
@@ -70,17 +92,23 @@ class DivineCursor {
 class ParticleSystem {
     constructor() {
         this.canvas = document.getElementById('particleCanvas');
+        if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.particles = [];
         this.mouse = { x: -1000, y: -1000 };
-        this.particleCount = 60;
+        this.particleCount = window.innerWidth < 768 ? 18 : 28;
+        this.running = true;
         this.init();
     }
     init() {
         this.resize();
         this.createParticles();
         window.addEventListener('resize', () => this.resize());
-        document.addEventListener('mousemove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
+        document.addEventListener('mousemove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }, { passive: true });
+        document.addEventListener('visibilitychange', () => {
+            this.running = !document.hidden;
+            if (this.running) this.animate();
+        });
         this.animate();
     }
     resize() {
@@ -102,15 +130,18 @@ class ParticleSystem {
         }));
     }
     animate() {
+        if (!this.running || !this.ctx) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         const time = Date.now() * 0.001;
-        this.particles.forEach((p, i) => {
-            const dx = p.x - this.mouse.x, dy = p.y - this.mouse.y, dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 200) {
-                const force = (200 - dist) / 200;
+        const len = this.particles.length;
+        for (let i = 0; i < len; i++) {
+            const p = this.particles[i];
+            const dx = p.x - this.mouse.x, dy = p.y - this.mouse.y, dist = Math.hypot(dx, dy);
+            if (dist < 160) {
+                const force = (160 - dist) / 160;
                 const angle = Math.atan2(dy, dx);
-                p.vx += Math.cos(angle) * force * 0.05;
-                p.vy += Math.sin(angle) * force * 0.05;
+                p.vx += Math.cos(angle) * force * 0.04;
+                p.vy += Math.sin(angle) * force * 0.04;
             }
             p.vx *= 0.99; p.vy *= 0.99;
             p.x += p.vx; p.y += p.vy;
@@ -119,17 +150,17 @@ class ParticleSystem {
             if (p.y < -50) p.y = this.canvas.height + 50;
             if (p.y > this.canvas.height + 50) p.y = -50;
             const pulse = Math.sin(time * p.pulseSpeed * 100 + p.pulseOffset) * 0.5 + 0.5;
-            p.size = p.baseSize + pulse * 1.5;
+            p.size = p.baseSize + pulse * 1.2;
             const alpha = p.opacity * (0.5 + pulse * 0.5);
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             this.ctx.fillStyle = p.color + alpha + ')';
             this.ctx.fill();
-            for (let j = i + 1; j < this.particles.length; j++) {
+            for (let j = i + 1; j < len; j++) {
                 const p2 = this.particles[j];
-                const cdx = p.x - p2.x, cdy = p.y - p2.y, cdist = Math.sqrt(cdx * cdx + cdy * cdy);
-                if (cdist < 160) {
-                    const la = (1 - cdist / 160) * 0.1;
+                const cdx = p.x - p2.x, cdy = p.y - p2.y, cdist = Math.hypot(cdx, cdy);
+                if (cdist < 120) {
+                    const la = (1 - cdist / 120) * 0.08;
                     this.ctx.beginPath();
                     this.ctx.moveTo(p.x, p.y);
                     this.ctx.lineTo(p2.x, p2.y);
@@ -138,7 +169,7 @@ class ParticleSystem {
                     this.ctx.stroke();
                 }
             }
-        });
+        }
         requestAnimationFrame(() => this.animate());
     }
 }
@@ -201,24 +232,29 @@ class PortfolioApp {
     }
     startLoading() {
         let progress = 0;
-        const interval = setInterval(() => {
-            progress += 2;
+        const tick = () => {
+            progress += 8;
             if (progress >= 100) {
                 progress = 100;
-                clearInterval(interval);
+                this.loadingBar.style.width = progress + '%';
+                this.loadingPercent.textContent = progress + '%';
                 this.completeLoading();
+                return;
             }
             this.loadingBar.style.width = progress + '%';
-            this.loadingPercent.textContent = Math.floor(progress) + '%';
-        }, 40);
+            this.loadingPercent.textContent = progress + '%';
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
     }
     completeLoading() {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             this.loadingScreen.classList.add('hidden');
             this.mainContainer.classList.add('ready');
             document.body.classList.add('cinematic-mode');
             setTimeout(() => document.body.classList.remove('cinematic-mode'), 2000);
-        }, 400);
+            if (window.initPortfolioExperience) window.initPortfolioExperience();
+        });
     }
 }
 
@@ -347,7 +383,7 @@ class ArsenalCinematic {
             entries.forEach(e => {
                 if (e.isIntersecting) this.autoDeploy();
             });
-        }, { threshold: 0.2 });
+        }, { threshold: 0.25, rootMargin: '0px 0px -18% 0px' });
         if (this.section) observer.observe(this.section);
         // Still allow click for re-flip interaction
         this.chests.forEach(chest => {
@@ -533,76 +569,69 @@ class LabShowcase {
 }
 
 // ═══════════════════════════════════════════════
-// JOURNEY — Cinematic roadmap with curvy dashed road
+// JOURNEY — Achievement houses, road, car, trophy finale
 // ═══════════════════════════════════════════════
-class JourneyRoadmap {
+class JourneyCinema {
     constructor() {
         this.container = document.getElementById('journeyFuture');
         this.timeline = document.getElementById('journeyTimeline');
-        this.finishLine = document.getElementById('journeyFinishLine');
+        this.finale = document.getElementById('journeyFinale');
+        this.odysseyTitle = document.getElementById('odysseyContinues');
         this.svg = document.getElementById('journeyRoadSvg');
-        this.pathBg = document.getElementById('journeyRoadBg');
+        this.pathBed = document.getElementById('journeyRoadBed');
+        this.pathDash = document.getElementById('journeyRoadDash');
         this.pathDraw = document.getElementById('journeyRoadDraw');
+        this.car = document.getElementById('journeyCar');
+        this.hero = document.getElementById('journeyHero');
+        this.trophy = document.getElementById('finaleTrophy');
+        this.confettiEl = document.getElementById('finaleConfetti');
         this.section = document.getElementById('journey');
         this.milestones = [
-            { event: 'Smart India Hackathon', year: '2025', result: 'Round 2 Qualifier', context: "My FIRST hackathon — India's largest student innovation competition" },
-            { event: 'Mumbai Hackathon', year: '2025', result: 'Finalist', context: 'Competed among top national teams in Mumbai' },
-            { event: 'Pragyan Hackathon', year: '2026', result: 'Participant', context: "NIT Trichy's premier hackathon experience" },
-            { event: 'RIFT Hackathon', year: '2026', result: 'Participant', context: 'Pushed boundaries in rapid innovation' },
-            { event: 'NSS Best Volunteer Award', year: '2026', result: 'Recognition', context: 'Honored for outstanding community service contributions' },
-            { event: 'Schneider Electric Challenge', year: '2026', result: 'Participant', context: 'Industry-level engineering problem solving' },
-            { event: 'Mechovate', year: '2026', result: 'Participant', context: 'Mechanical & electronics innovation showcase' },
-            { event: 'KI Hacks', year: '2026', result: 'Participant', context: 'Creative problem-solving marathon' },
-            { event: 'SDG Hackathon', year: '2026', result: 'Finalist', context: 'Sustainable Development Goals focused innovation' },
-            { event: 'Tenkasi Hackathon', year: '2026', result: 'Runner Up', context: 'Secured podium finish among fierce competition' },
-            { event: 'CreateX Hackathon', year: '2026', result: 'Special Mention', context: 'Recognized among national-level teams for innovation' },
-            { event: 'StartupTN Hackathons', year: '2025-2026', result: 'Multiple Editions', context: 'Consistent participation across StartupTN initiatives' }
+            { event: 'Smart India Hackathon', year: '2025', result: 'Round 2 Qualifier', context: "My FIRST hackathon — India's largest student innovation competition", icon: '🏛' },
+            { event: 'Mumbai Hackathon', year: '2025', result: 'Finalist', context: 'Competed among top national teams in Mumbai', icon: '🌆' },
+            { event: 'Pragyan Hackathon', year: '2026', result: 'Participant', context: "NIT Trichy's premier hackathon experience", icon: '⚡' },
+            { event: 'RIFT Hackathon', year: '2026', result: 'Participant', context: 'Pushed boundaries in rapid innovation', icon: '🔬' },
+            { event: 'NSS Best Volunteer Award', year: '2026', result: 'Recognition', context: 'Honored for outstanding community service contributions', icon: '🌱' },
+            { event: 'Schneider Electric Challenge', year: '2026', result: 'Participant', context: 'Industry-level engineering problem solving', icon: '⚙' },
+            { event: 'Mechovate', year: '2026', result: 'Participant', context: 'Mechanical & electronics innovation showcase', icon: '🔧' },
+            { event: 'KI Hacks', year: '2026', result: 'Participant', context: 'Creative problem-solving marathon', icon: '💡' },
+            { event: 'SDG Hackathon', year: '2026', result: 'Finalist', context: 'Sustainable Development Goals focused innovation', icon: '🌍' },
+            { event: 'Tenkasi Hackathon', year: '2026', result: 'Runner Up', context: 'Secured podium finish among fierce competition', icon: '🏅' },
+            { event: 'CreateX Hackathon', year: '2026', result: 'Special Mention', context: 'Recognized among national-level teams for innovation', icon: '✨' },
+            { event: 'StartupTN Hackathons', year: '2025-2026', result: 'Multiple Editions', context: 'Consistent participation across StartupTN initiatives', icon: '🚀' }
         ];
         this.pathLength = 0;
         this.nodeLengths = [];
+        this.drawnLength = 0;
         this.animationStarted = false;
-        this.playTriggered = false;
+        this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         this.init();
     }
 
     init() {
+        if (!this.timeline) return;
         this.renderTimeline();
-
-        // Build road after layout (double rAF ensures the DOM is painted)
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                this.buildRoad();
-            });
-        });
-
-        // Rebuild on resize
+        requestAnimationFrame(() => requestAnimationFrame(() => this.buildRoad()));
         window.addEventListener('resize', () => {
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    this.buildRoad();
-                });
-            });
-        });
+            requestAnimationFrame(() => this.buildRoad());
+        }, { passive: true });
 
-        // IntersectionObserver as primary trigger
         const observer = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (e.isIntersecting) this.playJourney();
-            });
-        }, { threshold: 0.15 });
+            entries.forEach(e => { if (e.isIntersecting) this.playJourney(); });
+        }, { threshold: 0.12, rootMargin: '0px 0px -10% 0px' });
         if (this.section) observer.observe(this.section);
 
-        // Fallback scroll listener in case the observer misses
-        const scrollFallback = () => {
-            if (!this.section || this.playTriggered) return;
+        const scrollCheck = () => {
+            if (!this.section || this.animationStarted) return;
             const rect = this.section.getBoundingClientRect();
-            const windowH = window.innerHeight || document.documentElement.clientHeight;
-            if (rect.top < windowH && rect.bottom > 0) {
-                this.playJourney();
-            }
+            if (rect.top < window.innerHeight * 0.85 && rect.bottom > 0) this.playJourney();
         };
-        window.addEventListener('scroll', scrollFallback, { passive: true });
-        scrollFallback(); // check immediately (e.g., if page loaded already scrolled)
+        window.addEventListener('scroll', scrollCheck, { passive: true });
+        scrollCheck();
+
+        setTimeout(() => {
+            if (!this.animationStarted && this.section?.classList.contains('visible')) this.playJourney();
+        }, 2500);
     }
 
     renderTimeline() {
@@ -610,141 +639,302 @@ class JourneyRoadmap {
         this.milestones.forEach((m, i) => {
             const side = i % 2 === 0 ? 'left' : 'right';
             const stop = document.createElement('div');
-            stop.className = `road-stop road-stop-${side}`;
+            stop.className = `journey-stop journey-stop-${side}`;
             stop.dataset.index = i;
             stop.innerHTML = `
-                <div class="road-box">
-                    <div class="road-box-header">
-                        <span class="road-mile">M${String(i + 1).padStart(2, '0')}</span>
-                        <span class="ms-year">${m.year}</span>
+                <div class="achievement-house" aria-label="${m.event}">
+                    <div class="house-structure">
+                        <div class="house-roof"></div>
+                        <div class="house-body">
+                            <span class="house-icon">${m.icon}</span>
+                            <span class="house-num">${String(i + 1).padStart(2, '0')}</span>
+                        </div>
+                        <div class="house-door"></div>
                     </div>
-                    <div class="ms-event">${m.event}</div>
-                    <div class="ms-result">${m.result}</div>
-                    <p class="ms-context">${m.context}</p>
+                    <div class="house-plaque">
+                        <div class="plaque-header">
+                            <span class="plaque-mile">M${String(i + 1).padStart(2, '0')}</span>
+                            <span class="plaque-year">${m.year}</span>
+                        </div>
+                        <h4 class="plaque-title">${m.event}</h4>
+                        <span class="plaque-badge">${m.result}</span>
+                        <p class="plaque-context">${m.context}</p>
+                    </div>
+                    <div class="house-celebrate" aria-hidden="true"></div>
                 </div>
-                <div class="road-node"><div class="road-node-pulse"></div></div>`;
+                <div class="journey-node" aria-hidden="true"><span class="node-pulse"></span></div>`;
             this.timeline.appendChild(stop);
         });
     }
 
-    getNodeCenter(node) {
-        const cr = this.container.getBoundingClientRect();
-        const nr = node.getBoundingClientRect();
-        return {
-            x: nr.left - cr.left + nr.width / 2,
-            y: nr.top - cr.top + nr.height / 2
-        };
+    getLayoutPoint(el, x = 0, y = 0) {
+        let px = x;
+        let py = y;
+        let node = el;
+        while (node && node !== this.container) {
+            px += node.offsetLeft || 0;
+            py += node.offsetTop || 0;
+            node = node.parentElement;
+        }
+        return { x: px, y: py };
+    }
+
+    getElementCenter(el) {
+        return this.getLayoutPoint(el, el.offsetWidth / 2, el.offsetHeight / 2);
+    }
+
+    getDoorPoint(stop) {
+        const door = stop.querySelector('.house-door');
+        if (!door) return this.getElementCenter(stop);
+        return this.getLayoutPoint(door, door.offsetWidth / 2, door.offsetHeight - 1);
+    }
+
+    syncNodeToDoor(stop, point) {
+        const node = stop.querySelector('.journey-node');
+        if (!node) return;
+        const stopOrigin = this.getLayoutPoint(stop);
+        node.style.left = `${point.x - stopOrigin.x}px`;
+        node.style.top = `${point.y - stopOrigin.y}px`;
+    }
+
+    buildRoadPath(points) {
+        if (points.length < 2) return '';
+        let d = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1], curr = points[i];
+            const dy = Math.max(120, Math.abs(curr.y - prev.y));
+            const isWide = this.container.offsetWidth > 760;
+            const curveReach = Math.min(isWide ? 360 : 120, this.container.offsetWidth * (isWide ? 0.32 : 0.18));
+            const turn = curr.x > prev.x ? 1 : -1;
+            const cp1x = prev.x + curveReach * turn;
+            const cp1y = prev.y + dy * 0.12;
+            const cp2x = curr.x - curveReach * turn;
+            const cp2y = curr.y - dy * 0.12;
+            d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+        }
+        return d;
     }
 
     buildRoad() {
-        const stops = this.timeline.querySelectorAll('.road-stop');
-        if (!stops.length || !this.svg) return;
+        const stops = this.timeline?.querySelectorAll('.journey-stop');
+        if (!stops?.length || !this.svg || !this.pathDraw) return;
 
-        const timelineHeight = this.timeline.offsetHeight;
-        const containerWidth = this.container.offsetWidth;
-        const h = timelineHeight + 80;
-
+        const h = this.timeline.offsetHeight + 180;
+        const w = this.container.offsetWidth || 800;
         this.container.style.minHeight = h + 'px';
-
-        // 🔑 THE CRITICAL FIX: give the SVG a viewBox that matches the actual pixel size
-        // Without this, the default 300x150 viewBox makes the path invisible.
-        this.svg.setAttribute('viewBox', `0 0 ${containerWidth} ${h}`);
-        this.svg.setAttribute('width', containerWidth);
+        this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        this.svg.setAttribute('width', w);
         this.svg.setAttribute('height', h);
-        this.svg.style.width = '100%';
-        this.svg.style.height = h + 'px';
 
-        const points = [...stops].map(s => this.getNodeCenter(s.querySelector('.road-node')));
-        if (points.length < 2) return;
+        const points = [...stops].map(s => {
+            const p = this.getDoorPoint(s);
+            this.syncNodeToDoor(s, p);
+            return p;
+        });
+        const d = this.buildRoadPath(points);
+        if (!d) return;
 
-        let d = `M ${points[0].x} ${points[0].y}`;
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const curr = points[i];
-            const midY = (prev.y + curr.y) / 2;
-            const bulge = (i % 2 === 0 ? -1 : 1) * 160;
-            const cp1x = prev.x + bulge * 0.5;
-            const cp1y = prev.y + (midY - prev.y) * 0.6;
-            const cp2x = curr.x - bulge * 0.5;
-            const cp2y = curr.y - (curr.y - midY) * 0.6;
-            d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
-        }
-
-        this.pathBg.setAttribute('d', d);
+        this.pathBed?.setAttribute('d', d);
+        this.pathDash?.setAttribute('d', d);
         this.pathDraw.setAttribute('d', d);
-
         this.pathLength = this.pathDraw.getTotalLength();
         this.pathDraw.style.strokeDasharray = `${this.pathLength} ${this.pathLength}`;
         this.pathDraw.style.strokeDashoffset = this.pathLength;
-
         this.nodeLengths = points.map(p => this.findLengthAtPoint(p));
+
+        if (this.drawnLength > 0) {
+            this.pathDraw.style.strokeDashoffset = this.pathLength - this.drawnLength;
+            this.setCarAtLength(this.drawnLength);
+        }
     }
 
     findLengthAtPoint(target) {
-        let best = 0;
-        let bestDist = Infinity;
-        for (let l = 0; l <= this.pathLength; l += 4) {
+        let best = 0, bestDist = Infinity;
+        const step = 25;
+        for (let l = 0; l <= this.pathLength; l += step) {
             const p = this.pathDraw.getPointAtLength(l);
             const dist = Math.hypot(p.x - target.x, p.y - target.y);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = l;
-            }
+            if (dist < bestDist) { bestDist = dist; best = l; }
+        }
+        const start = Math.max(0, best - step);
+        const end = Math.min(this.pathLength, best + step);
+        for (let l = start; l <= end; l += 1) {
+            const p = this.pathDraw.getPointAtLength(l);
+            const dist = Math.hypot(p.x - target.x, p.y - target.y);
+            if (dist < bestDist) { bestDist = dist; best = l; }
         }
         return best;
     }
 
-    delay(ms) {
-        return new Promise(r => setTimeout(r, ms));
+    getAngleAtLength(length) {
+        const p1 = this.pathDraw.getPointAtLength(Math.max(0, length - 2));
+        const p2 = this.pathDraw.getPointAtLength(Math.min(this.pathLength, length + 2));
+        return Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+    }
+
+    setCarAtLength(length) {
+        if (!this.car || !this.pathDraw) return;
+        const p = this.pathDraw.getPointAtLength(length);
+        const angle = this.getAngleAtLength(length);
+        this.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
+    }
+
+    delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    celebrateHouse(stop) {
+        const house = stop.querySelector('.achievement-house');
+        const burst = stop.querySelector('.house-celebrate');
+        house?.classList.add('revealed');
+        if (burst) {
+            burst.classList.add('active');
+            setTimeout(() => burst.classList.remove('active'), 900);
+        }
+    }
+
+    showAll() {
+        this.timeline?.querySelectorAll('.journey-stop').forEach(s => {
+            s.classList.add('visible');
+            this.celebrateHouse(s);
+        });
+        if (this.pathDraw && this.pathLength) {
+            this.pathDraw.style.strokeDashoffset = '0';
+            this.drawnLength = this.pathLength;
+        }
+        this.car?.setAttribute('opacity', '0');
+        this.finale?.classList.add('visible');
+        this.odysseyTitle?.classList.add('visible');
+        this.section?.classList.add('journey-complete');
     }
 
     async playJourney() {
         if (this.animationStarted) return;
         this.animationStarted = true;
-        this.playTriggered = true;
+        window.activeLabShowcase?.stopShowcase?.();
+
+        if (this.reducedMotion) {
+            this.showAll();
+            return;
+        }
+
         try {
-            // Recalculate road in case layout shifted
             this.buildRoad();
-            const stops = [...this.timeline.querySelectorAll('.road-stop')];
+            const stops = [...this.timeline.querySelectorAll('.journey-stop')];
             if (!stops.length) return;
 
-            await this.delay(300);
+            await this.delay(200);
             stops[0].classList.add('visible');
-            await this.delay(700);
+            this.celebrateHouse(stops[0]);
+            this.car?.setAttribute('opacity', '1');
+            this.setCarAtLength(0);
+            await this.delay(600);
 
             for (let i = 0; i < stops.length - 1; i++) {
-                await this.animateRoadTo(this.nodeLengths[i + 1], 1400);
+                const fromLen = this.drawnLength;
+                const toLen = this.nodeLengths[i + 1] || 0;
+                await this.animateRoadAndCar(fromLen, toLen, 1200);
                 stops[i + 1].classList.add('visible');
-                await this.delay(500);
+                this.celebrateHouse(stops[i + 1]);
+                await this.delay(350);
             }
 
-            this.finishLine?.classList.add('visible');
+            await this.playFinale();
         } catch (e) {
-            console.warn('Journey animation error – revealing all milestones as fallback:', e);
-            // Failsafe: show everything if the animation fails
-            const stops = this.timeline.querySelectorAll('.road-stop');
-            stops.forEach(s => s.classList.add('visible'));
-            this.finishLine?.classList.add('visible');
+            console.warn('Journey cinema fallback:', e);
+            this.showAll();
         }
     }
 
-    animateRoadTo(targetLength, duration) {
-        const startLength = this.pathLength - parseFloat(this.pathDraw.style.strokeDashoffset || this.pathLength);
+    animateRoadAndCar(fromLen, toLen, duration) {
+        const startDraw = this.drawnLength;
         return new Promise(resolve => {
             const start = performance.now();
             const tick = now => {
                 const t = Math.min((now - start) / duration, 1);
-                const eased = 1 - Math.pow(1 - t, 4);
-                const current = startLength + (targetLength - startLength) * eased;
-                this.pathDraw.style.strokeDashoffset = this.pathLength - current;
-                if (t < 1) {
-                    requestAnimationFrame(tick);
-                } else {
+                const eased = 1 - Math.pow(1 - t, 3);
+                const currentLen = fromLen + (toLen - fromLen) * eased;
+                this.drawnLength = currentLen;
+                this.pathDraw.style.strokeDashoffset = this.pathLength - currentLen;
+                this.setCarAtLength(currentLen);
+                if (t < 1) requestAnimationFrame(tick);
+                else resolve();
+            };
+            requestAnimationFrame(tick);
+        });
+    }
+
+    async playFinale() {
+        const lastLen = this.nodeLengths[this.nodeLengths.length - 1] || this.pathLength;
+        this.setCarAtLength(lastLen);
+        await this.delay(500);
+
+        this.car?.classList.add('parked');
+        this.car?.classList.add('door-open');
+        await this.delay(650);
+
+        const carPt = this.pathDraw.getPointAtLength(lastLen);
+        this.hero?.setAttribute('opacity', '1');
+        this.hero?.classList.add('exiting');
+        this.hero?.setAttribute('transform', `translate(${carPt.x - 5},${carPt.y + 2}) scale(0.72)`);
+        await this.delay(500);
+
+        const trophyRect = this.trophy?.getBoundingClientRect();
+        const containerRect = this.container.getBoundingClientRect();
+        if (trophyRect && this.hero) {
+            const tx = trophyRect.left - containerRect.left + trophyRect.width / 2;
+            const ty = trophyRect.top - containerRect.top + trophyRect.height / 2 - 20;
+            await this.animateHeroWalk(carPt.x - 5, carPt.y + 2, tx, ty, 1600);
+        }
+
+        this.finale?.classList.add('visible');
+        this.trophy?.classList.add('lifted');
+        this.spawnConfetti();
+        await this.delay(800);
+
+        this.odysseyTitle?.classList.add('visible');
+        this.section?.classList.add('journey-complete');
+        await this.delay(1200);
+
+        const beyond = document.getElementById('beyond');
+        if (beyond) beyond.classList.add('journey-reveal-next');
+    }
+
+    animateHeroWalk(fromX, fromY, toX, toY, duration) {
+        return new Promise(resolve => {
+            const start = performance.now();
+            const tick = now => {
+                const t = Math.min((now - start) / duration, 1);
+                const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                const x = fromX + (toX - fromX) * eased;
+                const bob = Math.sin(t * Math.PI * 8) * 3 * (1 - t * 0.25);
+                const y = fromY + (toY - fromY) * eased + bob;
+                const scale = 0.72 + Math.min(t * 1.4, 1) * 0.28;
+                this.hero?.setAttribute('transform', `translate(${x},${y}) scale(${scale})`);
+                if (t < 1) requestAnimationFrame(tick);
+                else {
+                    this.hero?.classList.remove('exiting');
+                    this.hero?.classList.add('arrived');
                     resolve();
                 }
             };
             requestAnimationFrame(tick);
         });
+    }
+
+    spawnConfetti() {
+        if (!this.confettiEl) return;
+        const colors = ['#c4a45a', '#d4b86a', '#4de8ff', '#e8d5a3', '#9b6dff'];
+        for (let i = 0; i < 40; i++) {
+            const piece = document.createElement('span');
+            piece.className = 'confetti-piece';
+            piece.style.cssText = `
+                left:${Math.random() * 100}%;
+                background:${colors[i % colors.length]};
+                animation-delay:${Math.random() * 0.4}s;
+                animation-duration:${0.8 + Math.random() * 0.6}s;
+            `;
+            this.confettiEl.appendChild(piece);
+            setTimeout(() => piece.remove(), 2000);
+        }
     }
 }
 
@@ -867,19 +1057,21 @@ class LearningOrbit {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    new PortfolioApp();
+    new GameNavigation();
+});
+
+window.initPortfolioExperience = function () {
     new DivineCursor();
     new ParticleSystem();
     new HeroCanvas();
-    new PortfolioApp();
-    new GameNavigation();
     new ScrollAnimator();
     new IdentityAnimator();
     new ArsenalCinematic();
     new WorkCinema();
-    new LabShowcase();
-    new JourneyRoadmap();
+    window.activeLabShowcase = new LabShowcase();
+    new JourneyCinema();
     new BeyondAnimator();
     new EducationAnimator();
     new LearningOrbit();
-    console.log("⚡ ENGINEER'S ODYSSEY — CINEMATIC EDITION ONLINE ⚡");
-});
+};
