@@ -8,14 +8,12 @@ class DivineCursor {
         this.ring = document.getElementById('cursor-ring');
         this.rune = document.getElementById('cursor-rune');
         this.trailCanvas = document.getElementById('cursor-trail');
-        this.trailCtx = this.trailCanvas?.getContext('2d');
         this.mouseX = window.innerWidth / 2;
         this.mouseY = window.innerHeight / 2;
         this.ringX = this.mouseX;
         this.ringY = this.mouseY;
         this.isHovering = false;
-        this.trail = [];
-        this.maxTrail = 10;
+        this.raf = null;
         this.init();
     }
     init() {
@@ -25,67 +23,35 @@ class DivineCursor {
             document.body.style.cursor = 'auto';
             return;
         }
-        this.resizeTrail();
+        if (this.trailCanvas) this.trailCanvas.style.display = 'none';
         document.addEventListener('mousemove', (e) => {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
-        });
+        }, { passive: true });
         document.addEventListener('mousedown', () => this.dot?.classList.add('clicking'));
         document.addEventListener('mouseup', () => this.dot?.classList.remove('clicking'));
-        window.addEventListener('resize', () => this.resizeTrail());
         const hoverTargets = 'a, button, .arsenal-chest, .lab-rail-item, .learning-satellite, .work-cinema-card, .beyond-card, .edu-entry, .detail-item, .epi-link, .hud-dot, .hero-cta, .achievement-house';
         document.addEventListener('mouseover', (e) => {
             if (e.target.closest(hoverTargets)) {
                 this.isHovering = true;
                 this.ring?.classList.add('hovering');
-                this.rune?.classList.add('visible');
             }
         });
         document.addEventListener('mouseout', (e) => {
             if (!e.target.closest(hoverTargets)) {
                 this.isHovering = false;
                 this.ring?.classList.remove('hovering');
-                this.rune?.classList.remove('visible');
             }
         });
         this.animate();
     }
-    resizeTrail() {
-        this.trailCanvas.width = window.innerWidth;
-        this.trailCanvas.height = window.innerHeight;
-    }
     animate() {
-        this.ringX += (this.mouseX - this.ringX) * 0.08;
-        this.ringY += (this.mouseY - this.ringY) * 0.08;
+        this.ringX += (this.mouseX - this.ringX) * 0.16;
+        this.ringY += (this.mouseY - this.ringY) * 0.16;
         const x = this.mouseX, y = this.mouseY;
-        if (this.trailCtx) {
-            this.trail.push({ x, y, life: 1 });
-            if (this.trail.length > this.maxTrail) this.trail.shift();
-            this.trailCtx.clearRect(0, 0, this.trailCanvas.width, this.trailCanvas.height);
-            this.trail.forEach((p, i) => {
-                p.life *= 0.86;
-                const alpha = p.life * (i / this.trail.length) * 0.34;
-                if (i > 0) {
-                    const prev = this.trail[i - 1];
-                    this.trailCtx.beginPath();
-                    this.trailCtx.moveTo(prev.x, prev.y);
-                    this.trailCtx.lineTo(p.x, p.y);
-                    this.trailCtx.strokeStyle = `rgba(196, 164, 90, ${alpha * 0.7})`;
-                    this.trailCtx.lineWidth = 1;
-                    this.trailCtx.stroke();
-                }
-                this.trailCtx.beginPath();
-                this.trailCtx.arc(p.x, p.y, 1.6 + i * 0.15, 0, Math.PI * 2);
-                this.trailCtx.fillStyle = `rgba(77, 232, 255, ${alpha * 0.85})`;
-                this.trailCtx.fill();
-            });
-        }
-        if (this.dot) this.dot.style.transform = `translate3d(${x - 5}px, ${y - 5}px, 0) rotate(45deg)`;
-        if (this.ring) this.ring.style.transform = `translate3d(${this.ringX - 17}px, ${this.ringY - 17}px, 0)`;
-        if (this.rune && this.isHovering) {
-            this.rune.style.transform = `translate3d(${this.ringX}px, ${this.ringY - 28}px, 0) translate(-50%, -50%)`;
-        }
-        requestAnimationFrame(() => this.animate());
+        if (this.dot) this.dot.style.transform = `translate3d(${x - 4}px, ${y - 4}px, 0)`;
+        if (this.ring) this.ring.style.transform = `translate3d(${this.ringX - 15}px, ${this.ringY - 15}px, 0)`;
+        this.raf = requestAnimationFrame(() => this.animate());
     }
 }
 
@@ -96,7 +62,7 @@ class ParticleSystem {
         this.ctx = this.canvas.getContext('2d');
         this.particles = [];
         this.mouse = { x: -1000, y: -1000 };
-        this.particleCount = window.innerWidth < 768 ? 18 : 28;
+        this.particleCount = window.innerWidth < 768 ? 8 : 18;
         this.running = true;
         this.init();
     }
@@ -231,9 +197,11 @@ class PortfolioApp {
         this.startLoading();
     }
     startLoading() {
-        let progress = 0;
-        const tick = () => {
-            progress += 8;
+        const duration = 4500;
+        const start = performance.now();
+        const tick = (now) => {
+            const elapsed = now - start;
+            let progress = Math.min(100, Math.round((elapsed / duration) * 100));
             if (progress >= 100) {
                 progress = 100;
                 this.loadingBar.style.width = progress + '%';
@@ -307,11 +275,20 @@ class GameNavigation {
 class ScrollAnimator {
     constructor() {
         this.sections = document.querySelectorAll('.game-section');
+        this.parallaxFrame = null;
+        this.lastMouseEvent = null;
         this.observer = new IntersectionObserver((entries) => {
             entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
         }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
         this.sections.forEach(s => this.observer.observe(s));
-        document.addEventListener('mousemove', (e) => this.handleHeroParallax(e));
+        document.addEventListener('mousemove', (e) => {
+            this.lastMouseEvent = e;
+            if (this.parallaxFrame) return;
+            this.parallaxFrame = requestAnimationFrame(() => {
+                this.parallaxFrame = null;
+                if (this.lastMouseEvent) this.handleHeroParallax(this.lastMouseEvent);
+            });
+        }, { passive: true });
         window.addEventListener('scroll', () => this.handleScroll());
     }
     handleScroll() {
@@ -486,7 +463,7 @@ class LabShowcase {
                 if (e.isIntersecting) this.startShowcase();
                 else this.stopShowcase();
             });
-        }, { threshold: 0.2 });
+        }, { threshold: 0.1, rootMargin: '0px 0px -35% 0px' });
         if (this.section) observer.observe(this.section);
     }
     renderRail() {
@@ -557,14 +534,14 @@ class LabShowcase {
     animateProgress() {
         if (!this.progressFill) return;
         clearInterval(this.progressTimer);
-        let progress = 0;
+        this.progressTimer = null;
+        this.progressFill.style.transition = 'none';
         this.progressFill.style.width = '0%';
-        const step = 100 / (this.cycleDuration / 50);
-        this.progressTimer = setInterval(() => {
-            progress += step;
-            this.progressFill.style.width = Math.min(progress, 100) + '%';
-            if (progress >= 100) clearInterval(this.progressTimer);
-        }, 50);
+        requestAnimationFrame(() => {
+            if (!this.progressFill) return;
+            this.progressFill.style.transition = `width ${this.cycleDuration}ms linear`;
+            this.progressFill.style.width = '100%';
+        });
     }
 }
 
@@ -618,20 +595,16 @@ class JourneyCinema {
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(e => { if (e.isIntersecting) this.playJourney(); });
-        }, { threshold: 0.12, rootMargin: '0px 0px -10% 0px' });
+        }, { threshold: 0.01, rootMargin: '0px 0px 22% 0px' });
         if (this.section) observer.observe(this.section);
 
         const scrollCheck = () => {
             if (!this.section || this.animationStarted) return;
             const rect = this.section.getBoundingClientRect();
-            if (rect.top < window.innerHeight * 0.85 && rect.bottom > 0) this.playJourney();
+            if (rect.top < window.innerHeight * 1.08 && rect.bottom > 0) this.playJourney();
         };
         window.addEventListener('scroll', scrollCheck, { passive: true });
         scrollCheck();
-
-        setTimeout(() => {
-            if (!this.animationStarted && this.section?.classList.contains('visible')) this.playJourney();
-        }, 2500);
     }
 
     renderTimeline() {
@@ -697,22 +670,47 @@ class JourneyCinema {
         node.style.top = `${point.y - stopOrigin.y}px`;
     }
 
+    cubicPoint(p0, p1, p2, p3, t) {
+        const mt = 1 - t;
+        const a = mt * mt * mt;
+        const b = 3 * mt * mt * t;
+        const c = 3 * mt * t * t;
+        const d = t * t * t;
+        return {
+            x: a * p0.x + b * p1.x + c * p2.x + d * p3.x,
+            y: a * p0.y + b * p1.y + c * p2.y + d * p3.y
+        };
+    }
+
+    cubicLength(p0, p1, p2, p3, steps = 20) {
+        let length = 0;
+        let prev = p0;
+        for (let i = 1; i <= steps; i++) {
+            const curr = this.cubicPoint(p0, p1, p2, p3, i / steps);
+            length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
+            prev = curr;
+        }
+        return length;
+    }
+
     buildRoadPath(points) {
-        if (points.length < 2) return '';
+        if (points.length < 2) return { d: '', nodeLengths: [] };
         let d = `M ${points[0].x} ${points[0].y}`;
+        const nodeLengths = [0];
+        let cumulative = 0;
         for (let i = 1; i < points.length; i++) {
             const prev = points[i - 1], curr = points[i];
             const dy = Math.max(120, Math.abs(curr.y - prev.y));
             const isWide = this.container.offsetWidth > 760;
             const curveReach = Math.min(isWide ? 360 : 120, this.container.offsetWidth * (isWide ? 0.32 : 0.18));
             const turn = curr.x > prev.x ? 1 : -1;
-            const cp1x = prev.x + curveReach * turn;
-            const cp1y = prev.y + dy * 0.12;
-            const cp2x = curr.x - curveReach * turn;
-            const cp2y = curr.y - dy * 0.12;
-            d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+            const cp1 = { x: prev.x + curveReach * turn, y: prev.y + dy * 0.12 };
+            const cp2 = { x: curr.x - curveReach * turn, y: curr.y - dy * 0.12 };
+            d += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${curr.x} ${curr.y}`;
+            cumulative += this.cubicLength(prev, cp1, cp2, curr);
+            nodeLengths.push(cumulative);
         }
-        return d;
+        return { d, nodeLengths };
     }
 
     buildRoad() {
@@ -731,7 +729,7 @@ class JourneyCinema {
             this.syncNodeToDoor(s, p);
             return p;
         });
-        const d = this.buildRoadPath(points);
+        const { d, nodeLengths } = this.buildRoadPath(points);
         if (!d) return;
 
         this.pathBed?.setAttribute('d', d);
@@ -740,30 +738,13 @@ class JourneyCinema {
         this.pathLength = this.pathDraw.getTotalLength();
         this.pathDraw.style.strokeDasharray = `${this.pathLength} ${this.pathLength}`;
         this.pathDraw.style.strokeDashoffset = this.pathLength;
-        this.nodeLengths = points.map(p => this.findLengthAtPoint(p));
+        const scale = nodeLengths.length ? this.pathLength / nodeLengths[nodeLengths.length - 1] : 1;
+        this.nodeLengths = nodeLengths.map(l => l * scale);
 
         if (this.drawnLength > 0) {
             this.pathDraw.style.strokeDashoffset = this.pathLength - this.drawnLength;
             this.setCarAtLength(this.drawnLength);
         }
-    }
-
-    findLengthAtPoint(target) {
-        let best = 0, bestDist = Infinity;
-        const step = 25;
-        for (let l = 0; l <= this.pathLength; l += step) {
-            const p = this.pathDraw.getPointAtLength(l);
-            const dist = Math.hypot(p.x - target.x, p.y - target.y);
-            if (dist < bestDist) { bestDist = dist; best = l; }
-        }
-        const start = Math.max(0, best - step);
-        const end = Math.min(this.pathLength, best + step);
-        for (let l = start; l <= end; l += 1) {
-            const p = this.pathDraw.getPointAtLength(l);
-            const dist = Math.hypot(p.x - target.x, p.y - target.y);
-            if (dist < bestDist) { bestDist = dist; best = l; }
-        }
-        return best;
     }
 
     getAngleAtLength(length) {
@@ -792,6 +773,7 @@ class JourneyCinema {
     }
 
     showAll() {
+        this.section?.classList.add('visible', 'journey-road-ready');
         this.timeline?.querySelectorAll('.journey-stop').forEach(s => {
             s.classList.add('visible');
             this.celebrateHouse(s);
@@ -810,6 +792,7 @@ class JourneyCinema {
         if (this.animationStarted) return;
         this.animationStarted = true;
         window.activeLabShowcase?.stopShowcase?.();
+        this.section?.classList.add('visible');
 
         if (this.reducedMotion) {
             this.showAll();
@@ -821,12 +804,15 @@ class JourneyCinema {
             const stops = [...this.timeline.querySelectorAll('.journey-stop')];
             if (!stops.length) return;
 
-            await this.delay(200);
+            await this.delay(280);
             stops[0].classList.add('visible');
             this.celebrateHouse(stops[0]);
+            await this.delay(280);
+            this.section?.classList.add('journey-road-ready');
+            await this.delay(180);
             this.car?.setAttribute('opacity', '1');
             this.setCarAtLength(0);
-            await this.delay(600);
+            await this.delay(320);
 
             for (let i = 0; i < stops.length - 1; i++) {
                 const fromLen = this.drawnLength;
@@ -1057,21 +1043,37 @@ class LearningOrbit {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.activeCursor = new DivineCursor();
     new PortfolioApp();
     new GameNavigation();
 });
 
 window.initPortfolioExperience = function () {
-    new DivineCursor();
-    new ParticleSystem();
+    const runIdle = (fn, timeout = 1200) => {
+        if ('requestIdleCallback' in window) window.requestIdleCallback(fn, { timeout });
+        else setTimeout(fn, 16);
+    };
+
     new HeroCanvas();
     new ScrollAnimator();
-    new IdentityAnimator();
-    new ArsenalCinematic();
-    new WorkCinema();
-    window.activeLabShowcase = new LabShowcase();
-    new JourneyCinema();
-    new BeyondAnimator();
-    new EducationAnimator();
-    new LearningOrbit();
+
+    const tasks = [
+        () => new JourneyCinema(),
+        () => { window.activeLabShowcase = new LabShowcase(); },
+        () => new IdentityAnimator(),
+        () => new ArsenalCinematic(),
+        () => new WorkCinema(),
+        () => new BeyondAnimator(),
+        () => new EducationAnimator(),
+        () => new LearningOrbit(),
+        () => new ParticleSystem()
+    ];
+
+    const runNext = () => {
+        const task = tasks.shift();
+        if (!task) return;
+        task();
+        runIdle(runNext);
+    };
+    runIdle(runNext, 300);
 };
