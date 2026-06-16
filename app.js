@@ -362,6 +362,16 @@ class ArsenalCinematic {
             });
         }, { threshold: 0.25, rootMargin: '0px 0px -18% 0px' });
         if (this.section) observer.observe(this.section);
+        const scrollCheck = () => {
+            if (!this.section || this.deployed.size) return;
+            const rect = this.section.getBoundingClientRect();
+            if (rect.top < window.innerHeight * 0.65 && rect.bottom > window.innerHeight * 0.15) {
+                this.autoDeploy();
+            }
+        };
+        window.addEventListener('scroll', scrollCheck, { passive: true });
+        window.addEventListener('resize', scrollCheck, { passive: true });
+        requestAnimationFrame(scrollCheck);
         // Still allow click for re-flip interaction
         this.chests.forEach(chest => {
             chest.addEventListener('click', () => {
@@ -593,18 +603,34 @@ class JourneyCinema {
             requestAnimationFrame(() => this.buildRoad());
         }, { passive: true });
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(e => { if (e.isIntersecting) this.playJourney(); });
-        }, { threshold: 0.01, rootMargin: '0px 0px 22% 0px' });
-        if (this.section) observer.observe(this.section);
+        const shouldStartJourney = () => {
+            if (!this.section || this.animationStarted) return false;
+            const header = this.section.querySelector('.section-header');
+            const triggerEl = this.container || this.timeline || this.section;
+            const headerRect = header?.getBoundingClientRect();
+            const triggerRect = triggerEl.getBoundingClientRect();
+            const titleHasPassed = headerRect ? headerRect.bottom < window.innerHeight * 0.58 : true;
+            const contentInView = triggerRect.top < window.innerHeight * 0.82 && triggerRect.bottom > window.innerHeight * 0.2;
+            return titleHasPassed && contentInView;
+        };
+
+        const tryStartJourney = () => {
+            if (shouldStartJourney()) this.playJourney();
+        };
+
+        const observer = new IntersectionObserver(() => tryStartJourney(), {
+            threshold: 0.2,
+            rootMargin: '0px 0px -28% 0px'
+        });
+        if (this.container) observer.observe(this.container);
 
         const scrollCheck = () => {
             if (!this.section || this.animationStarted) return;
-            const rect = this.section.getBoundingClientRect();
-            if (rect.top < window.innerHeight * 1.08 && rect.bottom > 0) this.playJourney();
+            tryStartJourney();
         };
         window.addEventListener('scroll', scrollCheck, { passive: true });
-        scrollCheck();
+        window.addEventListener('resize', scrollCheck, { passive: true });
+        requestAnimationFrame(scrollCheck);
     }
 
     renderTimeline() {
