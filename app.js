@@ -877,34 +877,34 @@ class JourneyCinema {
     async playFinale() {
         const lastLen = this.nodeLengths[this.nodeLengths.length - 1] || this.pathLength;
         this.setCarAtLength(lastLen);
-        await this.delay(500);
+        await this.delay(180);
 
         this.car?.classList.add('parked');
         this.car?.classList.add('door-open');
-        await this.delay(650);
+        await this.delay(250);
 
         const carPt = this.pathDraw.getPointAtLength(lastLen);
         this.hero?.setAttribute('opacity', '1');
         this.hero?.classList.add('exiting');
         this.hero?.setAttribute('transform', `translate(${carPt.x - 5},${carPt.y + 2}) scale(0.72)`);
-        await this.delay(500);
+        await this.delay(160);
 
         const trophyRect = this.trophy?.getBoundingClientRect();
         const containerRect = this.container.getBoundingClientRect();
         if (trophyRect && this.hero) {
             const tx = trophyRect.left - containerRect.left + trophyRect.width / 2;
             const ty = trophyRect.top - containerRect.top + trophyRect.height / 2 - 20;
-            await this.animateHeroWalk(carPt.x - 5, carPt.y + 2, tx, ty, 1600);
+            await this.animateHeroWalk(carPt.x - 5, carPt.y + 2, tx, ty, 900);
         }
 
         this.finale?.classList.add('visible');
         this.trophy?.classList.add('lifted');
         this.spawnConfetti();
-        await this.delay(800);
+        await this.delay(400);
 
         this.odysseyTitle?.classList.add('visible');
         this.section?.classList.add('journey-complete');
-        await this.delay(1200);
+        await this.delay(600);
 
         const beyond = document.getElementById('beyond');
         if (beyond) beyond.classList.add('journey-reveal-next');
@@ -1025,7 +1025,9 @@ class LearningOrbit {
         this.dots = el.querySelectorAll('.learn-dot');
     }
     renderSatellites() {
-        const radius = Math.min(window.innerWidth * 0.28, 180);
+        const radius = window.innerWidth <= 640
+            ? Math.min(window.innerWidth * 0.24, 94)
+            : Math.min(window.innerWidth * 0.28, 180);
         this.books.forEach((book, i) => {
             const angle = (360 / this.books.length) * i;
             const sat = document.createElement('div');
