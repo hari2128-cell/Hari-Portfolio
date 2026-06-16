@@ -308,15 +308,23 @@
                     </defs>
                     <path id="journeyRoadBed" class="road-bed" fill="none"/>
                     <path id="journeyRoadDash" class="road-dash" fill="none"/>
+                    <path id="journeyRoadGlowLine" class="road-glow-line" fill="none"/>
                     <path id="journeyRoadDraw" class="road-draw-line" fill="none" filter="url(#roadGlow)"/>
                     <g id="journeyCar" class="journey-car" opacity="0">
-                        <path d="M -2 -8 L 8 -8 L 11 3 L 1 3 Z" class="car-door"/>
-                        <rect x="-14" y="-8" width="28" height="14" rx="3" class="car-body"/>
-                        <rect x="-6" y="-12" width="14" height="6" rx="2" class="car-cabin"/>
-                        <rect x="-1" y="-10" width="7" height="4" rx="1" class="car-window"/>
-                        <circle cx="13" cy="-1" r="1.5" class="car-headlight"/>
-                        <circle cx="-8" cy="6" r="4" class="car-wheel"/>
-                        <circle cx="8" cy="6" r="4" class="car-wheel"/>
+                        <g class="car-sprite">
+                            <ellipse cx="0" cy="0" rx="20" ry="11" class="car-shadow"/>
+                            <rect x="-14" y="-11" width="28" height="22" rx="7" class="car-body"/>
+                            <path d="M 0 -12 C 11 -11 18 -5 19 0 C 18 5 11 11 0 12 C -12 10 -17 5 -18 0 C -17 -5 -12 -10 0 -12 Z" class="car-shell"/>
+                            <rect x="-7" y="-6" width="14" height="12" rx="3" class="car-cabin"/>
+                            <path d="M 7 -5 L 15 -3 L 16 3 L 7 5 Z" class="car-windshield"/>
+                            <path d="M -4 -8 L 7 -8 L 7 8 L -4 8 Z" class="car-door"/>
+                            <circle cx="18" cy="-4" r="1.6" class="car-headlight"/>
+                            <circle cx="18" cy="4" r="1.6" class="car-headlight"/>
+                            <rect x="-11" y="-13.5" width="7" height="3" rx="1.5" class="car-wheel car-wheel-back"/>
+                            <rect x="7" y="-13.5" width="7" height="3" rx="1.5" class="car-wheel car-wheel-front"/>
+                            <rect x="-11" y="10.5" width="7" height="3" rx="1.5" class="car-wheel car-wheel-back"/>
+                            <rect x="7" y="10.5" width="7" height="3" rx="1.5" class="car-wheel car-wheel-front"/>
+                        </g>
                     </g>
                     <g id="journeyHero" class="journey-hero" opacity="0">
                         <circle cx="0" cy="-10" r="5" class="hero-head"/>
@@ -329,6 +337,12 @@
                 </svg>
                 <div class="journey-milestones" id="journeyTimeline"></div>
                 <div class="journey-finale" id="journeyFinale">
+                    <div class="finale-stadium" aria-hidden="true">
+                        <span class="stadium-light light-a"></span>
+                        <span class="stadium-light light-b"></span>
+                        <span class="stadium-light light-c"></span>
+                    </div>
+                    <div class="finale-fireworks" id="finaleFireworks" aria-hidden="true"></div>
                     <div class="finale-trophy-pedestal" id="finaleTrophy">
                         <div class="trophy-glow"></div>
                         <div class="trophy-icon">🏆</div>
@@ -365,7 +379,8 @@
             </div>
             <div class="education-display" id="educationDisplay">
                 <div class="edu-entry"><div class="edu-year">2024 — Present</div><h3>B.E. Electronics and Communication Engineering</h3><div class="edu-school">Madras Institute of Technology, Anna University — Chennai</div><div class="edu-score">CGPA 9.5 / 10 (till 3rd Semester)</div></div>
-                <div class="edu-entry"><div class="edu-year">2023 — 2024</div><h3>Higher Secondary Education</h3><div class="edu-school">Thirumurugan Matric. Hr Sec School — Tamil Nadu</div><div class="edu-score">Percentage: 98%</div></div>
+                <div class="edu-entry"><div class="edu-year">2023 — 2024</div><h3>Higher Secondary Education</h3><div class="edu-school">Thirumurugan Matric. Hr Sec School — Tiruppur</div><div class="edu-score">Percentage: 98%</div></div>
+                <div class="edu-entry"><div class="edu-year">2021 - 2022</div><h3>SSLC</h3><div class="edu-school">Nirmala Matriclation School - Tiruppur</div><div class="edu-score">Percentage: 91.4%</div></div>
             </div>
         </section>
 

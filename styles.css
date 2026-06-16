@@ -503,21 +503,25 @@ body.cinematic-mode .cinematic-bars { height: 6vh; }
 }
 #journey.journey-road-ready .journey-road-svg { opacity: 1; }
 
-.road-bed { stroke: url(#roadBedGrad); stroke-width: 34; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
-.road-dash { stroke: rgba(255, 255, 255, 0.42); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 10 14; animation: roadDashMarch 36s linear infinite; }
-.road-draw-line { stroke: rgba(77, 232, 255, 0.72); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.road-bed { stroke: url(#roadBedGrad); stroke-width: 40; stroke-linecap: round; stroke-linejoin: round; opacity: 0.96; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5)); }
+.road-dash { stroke: rgba(255, 255, 255, 0.5); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 16 18; animation: roadDashMarch 18s linear infinite; }
+.road-glow-line { stroke: rgba(77, 232, 255, 0.18); stroke-width: 48; stroke-linecap: round; stroke-linejoin: round; filter: blur(6px); }
+.road-draw-line { stroke: rgba(77, 232, 255, 0.9); stroke-width: 4.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 9px rgba(77, 232, 255, 0.68)); }
 @keyframes roadDashMarch { to { stroke-dashoffset: -160; } }
 
-.journey-car { opacity: 0.95; }
-.journey-car .car-body { fill: #4de8ff; }
-.journey-car .car-cabin { fill: #2a9eb8; }
-.journey-car .car-window { fill: rgba(232, 226, 213, 0.85); }
-.journey-car .car-headlight { fill: var(--gold-glow); filter: drop-shadow(0 0 5px rgba(232, 213, 163, 0.8)); }
-.journey-car .car-door { fill: #39c7df; stroke: rgba(232, 226, 213, 0.45); stroke-width: 0.6; transform-origin: 1px 0; opacity: 0; transition: opacity 0.25s ease, transform 0.55s var(--ease-out-expo); }
-.journey-car.door-open .car-door { opacity: 1; transform: rotate(-54deg) translate(-2px, 1px); }
-.journey-car .car-wheel { fill: #1a1816; stroke: #4de8ff; stroke-width: 1; animation: wheelSpin 0.4s linear infinite; transform-origin: center; }
-.journey-car.parked .car-wheel { animation: none; }
-@keyframes wheelSpin { to { transform: rotate(360deg); } }
+.journey-car { opacity: 0.95; filter: drop-shadow(0 0 10px rgba(77, 232, 255, 0.32)); transform-box: fill-box; transform-origin: center; will-change: transform; }
+.journey-car .car-sprite { transform-origin: center; animation: carEngineHum 0.34s ease-in-out infinite alternate; will-change: transform; }
+.journey-car.parked .car-sprite { animation: none; }
+.journey-car .car-shadow { fill: rgba(0, 0, 0, 0.28); filter: blur(1px); }
+.journey-car .car-body { fill: #174e5f; stroke: rgba(232, 226, 213, 0.24); stroke-width: 0.6; }
+.journey-car .car-shell { fill: #4de8ff; stroke: rgba(232, 226, 213, 0.45); stroke-width: 0.7; }
+.journey-car .car-cabin { fill: rgba(10, 36, 45, 0.92); stroke: rgba(232, 226, 213, 0.5); stroke-width: 0.45; }
+.journey-car .car-windshield { fill: rgba(232, 226, 213, 0.85); }
+.journey-car .car-headlight { fill: var(--gold-glow); filter: drop-shadow(0 0 7px rgba(232, 213, 163, 0.92)); }
+.journey-car .car-door { fill: #38c7df; stroke: rgba(232, 226, 213, 0.45); stroke-width: 0.6; transform-origin: 7px 0; opacity: 0; transition: opacity 0.22s ease, transform 0.6s var(--ease-out-expo); }
+.journey-car.door-open .car-door { opacity: 1; transform: rotate(-24deg) translate(-1px, 0); }
+.journey-car .car-wheel { fill: #090908; stroke: rgba(77, 232, 255, 0.82); stroke-width: 0.8; }
+@keyframes carEngineHum { from { transform: scale(0.992); } to { transform: scale(1.006); } }
 .journey-hero { transform-box: fill-box; transform-origin: center; }
 .journey-hero .hero-head { fill: #e8e2d5; }
 .journey-hero .hero-body { fill: var(--gold-primary); }
@@ -740,16 +744,42 @@ body.cinematic-mode .cinematic-bars { height: 6vh; }
 .node-pulse { display: none; }
 @keyframes roadNodePulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.3); opacity: 0.1; } }
 
+.journey-celebrating .journey-road-container { animation: finaleCameraShake 0.72s ease-out both; }
+@keyframes finaleCameraShake {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    16% { transform: translate3d(-3px, 2px, 0); }
+    32% { transform: translate3d(4px, -2px, 0); }
+    48% { transform: translate3d(-2px, -1px, 0); }
+    64% { transform: translate3d(3px, 1px, 0); }
+    82% { transform: translate3d(-1px, 1px, 0); }
+}
+
 /* Finale */
-.journey-finale { text-align: center; padding: 3rem 1rem 2rem; opacity: 0; transform: translateY(30px); transition: opacity 1s var(--ease-out-expo), transform 1s var(--ease-out-expo); position: relative; z-index: 2; }
+.journey-finale { text-align: center; padding: 3rem 1rem 2rem; opacity: 0; transform: translateY(30px); transition: opacity 1s var(--ease-out-expo), transform 1s var(--ease-out-expo); position: relative; z-index: 2; overflow: visible; }
 .journey-finale.visible { opacity: 1; transform: translateY(0); }
-.finale-trophy-pedestal { position: relative; display: inline-block; margin-bottom: 1.5rem; }
-.trophy-glow { position: absolute; inset: -30px; background: radial-gradient(circle, rgba(196, 164, 90, 0.25) 0%, transparent 70%); opacity: 0; transition: opacity 0.8s; }
+.journey-finale::after { content: ''; position: absolute; inset: -20% -15%; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,0.45) 0 6%, transparent 18%), radial-gradient(circle at 25% 20%, rgba(255,232,155,0.28), transparent 16%), radial-gradient(circle at 78% 18%, rgba(77,232,255,0.24), transparent 18%); mix-blend-mode: screen; }
+.journey-celebrating .journey-finale::after { animation: finaleFlash 1.25s ease-out both; }
+@keyframes finaleFlash { 0%, 28% { opacity: 0; } 36% { opacity: 1; } 48% { opacity: 0.2; } 62% { opacity: 0.75; } 100% { opacity: 0; } }
+.finale-stadium { position: absolute; inset: -80px -8% 0; pointer-events: none; opacity: 0; overflow: hidden; }
+.journey-celebrating .finale-stadium { opacity: 1; }
+.stadium-light { position: absolute; top: 0; width: 34%; height: 68%; transform-origin: top center; opacity: 0; background: linear-gradient(180deg, rgba(255,235,166,0.32), rgba(255,235,166,0)); clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%); filter: blur(1px); animation: stadiumSweep 1.8s ease-out both; }
+.stadium-light.light-a { left: 6%; --r: 18deg; transform: rotate(18deg); }
+.stadium-light.light-b { left: 34%; --r: 0deg; animation-delay: 0.12s; }
+.stadium-light.light-c { right: 6%; --r: -18deg; transform: rotate(-18deg); animation-delay: 0.22s; }
+@keyframes stadiumSweep { 0% { opacity: 0; transform: scaleY(0.3) rotate(var(--r, 0deg)); } 35%, 75% { opacity: 1; } 100% { opacity: 0.38; transform: scaleY(1) rotate(var(--r, 0deg)); } }
+.finale-fireworks { position: absolute; inset: -130px 0 0; pointer-events: none; overflow: visible; }
+.firework-burst { position: absolute; width: 8px; height: 8px; border-radius: 999px; background: var(--gold-bright); opacity: 0; filter: drop-shadow(0 0 12px rgba(255, 226, 132, 0.9)); animation: fireworkCore 1s ease-out forwards; }
+.firework-burst i { position: absolute; left: 50%; top: 50%; width: 3px; height: 10px; border-radius: 999px; background: linear-gradient(#fff, var(--gold-primary)); transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0); animation: fireworkSpark 1s ease-out forwards; }
+@keyframes fireworkCore { 0% { opacity: 0; transform: scale(0.2); } 12% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes fireworkSpark { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0) scaleY(0.2); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(-1 * var(--distance))) scaleY(1); } }
+.finale-trophy-pedestal { position: relative; display: inline-block; margin-bottom: 1.5rem; opacity: 0; transform: translateY(42px) scale(0.65); filter: blur(4px); transition: opacity 0.45s ease, transform 0.9s var(--ease-out-back), filter 0.55s ease; }
+.finale-trophy-pedestal.lifted { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+.trophy-glow { position: absolute; inset: -46px; background: radial-gradient(circle, rgba(255, 226, 132, 0.42) 0%, rgba(196, 164, 90, 0.24) 34%, transparent 72%); opacity: 0; transition: opacity 0.8s; }
 .finale-trophy-pedestal.lifted .trophy-glow { opacity: 1; animation: trophyGlow 2s ease-in-out infinite; }
 @keyframes trophyGlow { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 1; } }
-.trophy-icon { font-size: 4rem; display: block; filter: drop-shadow(0 0 20px rgba(196, 164, 90, 0.5)); transition: transform 0.8s var(--ease-out-back); }
-.finale-trophy-pedestal.lifted .trophy-icon { transform: scale(1.15) translateY(-12px); filter: drop-shadow(0 0 40px rgba(212, 184, 106, 0.9)); animation: trophyBounce 0.6s var(--ease-out-back); }
-@keyframes trophyBounce { 0% { transform: scale(1); } 50% { transform: scale(1.2) translateY(-20px); } 100% { transform: scale(1.15) translateY(-12px); } }
+.trophy-icon { font-size: 4rem; display: block; filter: drop-shadow(0 0 20px rgba(196, 164, 90, 0.5)); transform-origin: 50% 85%; transition: transform 0.8s var(--ease-out-back); }
+.finale-trophy-pedestal.lifted .trophy-icon { transform: scale(1.18) translateY(-18px) rotate(-4deg); filter: drop-shadow(0 0 42px rgba(255, 226, 132, 0.98)); animation: trophyChampionLift 1.15s var(--ease-out-back) both; }
+@keyframes trophyChampionLift { 0% { transform: scale(0.8) translateY(36px); } 46% { transform: scale(1.24) translateY(-24px) rotate(5deg); } 68% { transform: scale(1.16) translateY(-15px) rotate(-5deg); } 100% { transform: scale(1.18) translateY(-18px) rotate(-4deg); } }
 
 .odyssey-continues { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 600; color: var(--gold-primary); opacity: 0; transform: translateY(20px); transition: opacity 1.2s 0.3s var(--ease-out-expo), transform 1.2s 0.3s var(--ease-out-expo); margin-top: 1rem; }
 .odyssey-continues.visible { opacity: 1; transform: translateY(0); }
@@ -757,8 +787,8 @@ body.cinematic-mode .cinematic-bars { height: 6vh; }
 .journey-finale.visible .odyssey-sub { opacity: 1; }
 
 .finale-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.confetti-piece { position: absolute; top: -10px; width: 6px; height: 10px; opacity: 0; animation: confettiFall 1.2s ease-out forwards; }
-@keyframes confettiFall { 0% { opacity: 1; transform: translateY(0) rotate(0deg); } 100% { opacity: 0; transform: translateY(120px) rotate(720deg); } }
+.confetti-piece { position: absolute; top: -18px; width: 6px; height: 12px; opacity: 0; border-radius: 1px; animation: confettiFall 1.2s ease-out forwards; will-change: transform, opacity; }
+@keyframes confettiFall { 0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); } 100% { opacity: 0; transform: translate3d(var(--drift, 0), 190px, 0) rotate(calc(var(--spin, 1) * 840deg)); } }
 
 #beyond.journey-reveal-next { animation: sectionReveal 1.2s var(--ease-out-expo); }
 @keyframes sectionReveal { from { opacity: 0.3; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
@@ -807,9 +837,10 @@ body.cinematic-mode .cinematic-bars { height: 6vh; }
         overflow: visible;
         -webkit-line-clamp: unset;
     }
-    .road-bed { stroke-width: 20; }
+    .road-bed { stroke-width: 24; }
     .road-dash { stroke-width: 1.6; }
-    .road-draw-line { stroke-width: 3; }
+    .road-glow-line { stroke-width: 30; filter: blur(4px); }
+    .road-draw-line { stroke-width: 3.4; }
     .journey-node { transform: translate(-50%, -50%); margin: 0; }
     .journey-stop { flex-direction: column; }
     .journey-stop-left .house-structure { margin-left: 16px; margin-right: 0; align-self: flex-start; }
@@ -830,6 +861,8 @@ body.cinematic-mode .cinematic-bars { height: 6vh; }
     .house-roof { width: 74px; height: 28px; }
     .house-body { width: 60px; height: 44px; }
     .house-door { width: 15px; height: 20px; }
+    .road-bed { stroke-width: 20; }
+    .road-glow-line { stroke-width: 25; }
     .plaque-header { flex-direction: column; gap: 0.35rem; }
 }
 

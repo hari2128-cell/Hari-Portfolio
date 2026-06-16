@@ -356,19 +356,7 @@ class ArsenalCinematic {
         this.init();
     }
     init() {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (e.isIntersecting) this.autoDeploy();
-            });
-        }, { threshold: 0.25, rootMargin: '0px 0px -18% 0px' });
-        if (this.section) observer.observe(this.section);
-        const scrollCheck = () => {
-            if (!this.section || this.deployed.size) return;
-            const rect = this.section.getBoundingClientRect();
-            if (rect.top < window.innerHeight * 0.65 && rect.bottom > window.innerHeight * 0.15) {
-                this.autoDeploy();
-            }
-        };
+        const scrollCheck = () => this.updateScrollReveal();
         window.addEventListener('scroll', scrollCheck, { passive: true });
         window.addEventListener('resize', scrollCheck, { passive: true });
         requestAnimationFrame(scrollCheck);
@@ -380,16 +368,20 @@ class ArsenalCinematic {
             });
         });
     }
-    autoDeploy() {
+    clamp(value, min = 0, max = 1) {
+        return Math.min(max, Math.max(min, value));
+    }
+    updateScrollReveal() {
+        if (!this.section || !this.chests.length) return;
         this.chests.forEach((chest, i) => {
-            const delay = parseInt(chest.dataset.delay) || i * 150;
-            setTimeout(() => {
-                if (!this.deployed.has(i)) {
-                    chest.classList.add('deploying');
-                    setTimeout(() => this.openChest(chest), 600);
-                    this.deployed.add(i);
-                }
-            }, delay);
+            if (this.deployed.has(i)) return;
+            const rect = chest.getBoundingClientRect();
+            const triggerLine = window.innerHeight * (window.innerWidth <= 640 ? 0.78 : 0.72);
+            const chestProgress = this.clamp((triggerLine - rect.top) / Math.max(1, rect.height * 0.7));
+            if (chestProgress < 0.28) return;
+            chest.classList.add('deploying');
+            this.deployed.add(i);
+            setTimeout(() => this.openChest(chest), 220);
         });
     }
     openChest(chest) {
@@ -567,11 +559,13 @@ class JourneyCinema {
         this.svg = document.getElementById('journeyRoadSvg');
         this.pathBed = document.getElementById('journeyRoadBed');
         this.pathDash = document.getElementById('journeyRoadDash');
+        this.pathGlow = document.getElementById('journeyRoadGlowLine');
         this.pathDraw = document.getElementById('journeyRoadDraw');
         this.car = document.getElementById('journeyCar');
         this.hero = document.getElementById('journeyHero');
         this.trophy = document.getElementById('finaleTrophy');
         this.confettiEl = document.getElementById('finaleConfetti');
+        this.fireworksEl = document.getElementById('finaleFireworks');
         this.section = document.getElementById('journey');
         this.milestones = [
             { event: 'Smart India Hackathon', year: '2025', result: 'Round 2 Qualifier', context: "My FIRST hackathon — India's largest student innovation competition", icon: '🏛' },
@@ -589,8 +583,22 @@ class JourneyCinema {
         ];
         this.pathLength = 0;
         this.nodeLengths = [];
+        this.nodePoints = [];
         this.drawnLength = 0;
+        this.targetLength = 0;
+        this.carLength = 0;
+        this.carAngle = 0;
+        this.roadRaf = null;
+        this.scrollRaf = null;
         this.animationStarted = false;
+        this.celebratedStops = new Set();
+        this.confettiStarted = false;
+        this.finaleStarted = false;
+        this.finaleComplete = false;
+        this.finaleTimer = null;
+        this.finaleRunId = 0;
+        this.stops = [];
+        this.stopVisibility = [];
         this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         this.init();
     }
@@ -598,39 +606,216 @@ class JourneyCinema {
     init() {
         if (!this.timeline) return;
         this.renderTimeline();
-        requestAnimationFrame(() => requestAnimationFrame(() => this.buildRoad()));
+        const scrollCheck = () => this.requestScrollUpdate();
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            this.buildRoad();
+            this.updateScrollJourney();
+        }));
         window.addEventListener('resize', () => {
-            requestAnimationFrame(() => this.buildRoad());
+            requestAnimationFrame(() => {
+                this.buildRoad();
+                this.updateScrollJourney();
+            });
         }, { passive: true });
-
-        const shouldStartJourney = () => {
-            if (!this.section || this.animationStarted) return false;
-            const header = this.section.querySelector('.section-header');
-            const triggerEl = this.container || this.timeline || this.section;
-            const headerRect = header?.getBoundingClientRect();
-            const triggerRect = triggerEl.getBoundingClientRect();
-            const titleHasPassed = headerRect ? headerRect.bottom < window.innerHeight * 0.58 : true;
-            const contentInView = triggerRect.top < window.innerHeight * 0.82 && triggerRect.bottom > window.innerHeight * 0.2;
-            return titleHasPassed && contentInView;
-        };
-
-        const tryStartJourney = () => {
-            if (shouldStartJourney()) this.playJourney();
-        };
-
-        const observer = new IntersectionObserver(() => tryStartJourney(), {
-            threshold: 0.2,
-            rootMargin: '0px 0px -28% 0px'
-        });
-        if (this.container) observer.observe(this.container);
-
-        const scrollCheck = () => {
-            if (!this.section || this.animationStarted) return;
-            tryStartJourney();
-        };
         window.addEventListener('scroll', scrollCheck, { passive: true });
-        window.addEventListener('resize', scrollCheck, { passive: true });
         requestAnimationFrame(scrollCheck);
+    }
+
+    requestScrollUpdate() {
+        if (this.scrollRaf) return;
+        this.scrollRaf = requestAnimationFrame(() => {
+            this.scrollRaf = null;
+            this.updateScrollJourney();
+        });
+    }
+
+    clamp(value, min = 0, max = 1) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    updateScrollJourney() {
+        if (!this.section || !this.container || !this.timeline) return;
+        if (this.reducedMotion) {
+            this.showAll();
+            return;
+        }
+        if (!this.pathDraw || !this.pathLength) {
+            this.buildRoad();
+            if (!this.pathLength) return;
+        }
+
+        const rect = this.container.getBoundingClientRect();
+        const playhead = window.innerHeight * (window.innerWidth <= 640 ? 0.58 : 0.56);
+        const firstPoint = this.nodePoints[0] || { y: 0 };
+        const lastPoint = this.nodePoints[this.nodePoints.length - 1] || { y: rect.height };
+        const preRoll = Math.min(180, window.innerHeight * 0.22);
+        const finaleScroll = Math.min(260, Math.max(120, window.innerHeight * 0.2));
+        const localPlayhead = playhead - rect.top;
+        const roadStartY = firstPoint.y - preRoll;
+        const roadEndY = lastPoint.y;
+        const roadSpan = Math.max(1, roadEndY - roadStartY);
+        const progress = this.clamp((localPlayhead - roadStartY) / (roadSpan + finaleScroll));
+        this.section.classList.toggle('visible', progress > 0.01);
+        this.section.classList.toggle('journey-road-ready', progress > 0.015);
+        if (progress > 0.01 && progress < 1) window.activeLabShowcase?.stopShowcase?.();
+
+        const roadProgress = this.clamp((localPlayhead - roadStartY) / roadSpan);
+        const currentLen = this.pathLength * roadProgress;
+        this.targetLength = currentLen;
+        this.drawnLength = currentLen;
+        this.pathDraw.style.strokeDashoffset = this.pathLength - currentLen;
+        if (this.pathGlow) this.pathGlow.style.strokeDashoffset = this.pathLength - currentLen;
+        this.startRoadRenderLoop();
+
+        if (progress > 0.015) {
+            const atFinale = roadProgress >= 0.995;
+            this.car?.setAttribute('opacity', this.finaleComplete ? '0.72' : '1');
+            this.car?.classList.toggle('parked', atFinale || this.finaleStarted);
+        } else {
+            this.car?.setAttribute('opacity', '0');
+            this.car?.classList.remove('parked', 'door-open');
+        }
+
+        const stops = this.stops.length ? this.stops : [...this.timeline.querySelectorAll('.journey-stop')];
+        const revealLead = this.pathLength * 0.035;
+        stops.forEach((stop, i) => {
+            const visible = currentLen + revealLead >= (this.nodeLengths[i] || 0);
+            if (this.stopVisibility[i] !== visible) {
+                this.stopVisibility[i] = visible;
+                stop.classList.toggle('visible', visible);
+            }
+            if (visible && !this.celebratedStops.has(i)) {
+                this.celebratedStops.add(i);
+                this.celebrateHouse(stop);
+            }
+        });
+
+        const finaleProgress = this.clamp((localPlayhead - roadEndY) / finaleScroll);
+        const allStopsVisible = stops.length > 0 && this.celebratedStops.size >= stops.length && roadProgress >= 0.985;
+        if (roadProgress < 0.94 && (this.finaleStarted || this.finaleComplete || this.finaleTimer)) {
+            this.resetFinale();
+        }
+        this.finale?.classList.toggle('visible', finaleProgress > 0.05 || allStopsVisible || this.finaleStarted);
+        if (allStopsVisible) this.queueTimedFinale();
+        this.section.classList.toggle('journey-complete', this.finaleComplete);
+
+        const beyond = document.getElementById('beyond');
+        if (beyond) beyond.classList.toggle('journey-reveal-next', this.finaleComplete);
+    }
+
+    updateScrollFinale(progress) {
+        const showFinale = progress > 0.08;
+        this.finale?.classList.toggle('visible', showFinale);
+        this.trophy?.classList.toggle('lifted', progress > 0.42);
+        this.odysseyTitle?.classList.toggle('visible', progress > 0.62);
+
+        if (progress > 0.5 && !this.confettiStarted) {
+            this.confettiStarted = true;
+            this.spawnConfetti();
+        } else if (progress <= 0.1) {
+            this.confettiStarted = false;
+        }
+
+        if (!this.hero || !this.pathDraw || !this.pathLength) return;
+        if (progress <= 0.02) {
+            this.hero.setAttribute('opacity', '0');
+            this.hero.classList.remove('exiting', 'arrived');
+            return;
+        }
+
+        const lastLen = this.nodeLengths[this.nodeLengths.length - 1] || this.pathLength;
+        const carPt = this.pathDraw.getPointAtLength(lastLen);
+        const trophyRect = this.trophy?.getBoundingClientRect();
+        const containerRect = this.container.getBoundingClientRect();
+        const tx = trophyRect ? trophyRect.left - containerRect.left + trophyRect.width / 2 : carPt.x;
+        const ty = trophyRect ? trophyRect.top - containerRect.top + trophyRect.height / 2 - 20 : carPt.y;
+        const walk = this.clamp(progress / 0.72);
+        const eased = walk < 0.5 ? 4 * walk * walk * walk : 1 - Math.pow(-2 * walk + 2, 3) / 2;
+        const x = (carPt.x - 5) + (tx - (carPt.x - 5)) * eased;
+        const y = (carPt.y + 2) + (ty - (carPt.y + 2)) * eased + Math.sin(walk * Math.PI * 8) * 2;
+        const scale = 0.72 + Math.min(walk * 1.4, 1) * 0.28;
+        this.hero.setAttribute('opacity', '1');
+        this.hero.classList.toggle('exiting', walk < 0.98);
+        this.hero.classList.toggle('arrived', walk >= 0.98);
+        this.hero.setAttribute('transform', `translate(${x},${y}) scale(${scale})`);
+    }
+
+    queueTimedFinale() {
+        if (this.finaleStarted || this.finaleTimer) return;
+        this.finaleTimer = setTimeout(() => {
+            this.finaleTimer = null;
+            this.playTimedFinale();
+        }, 520);
+    }
+
+    resetFinale() {
+        this.finaleRunId++;
+        if (this.finaleTimer) {
+            clearTimeout(this.finaleTimer);
+            this.finaleTimer = null;
+        }
+        this.finaleStarted = false;
+        this.finaleComplete = false;
+        this.confettiStarted = false;
+        this.section?.classList.remove('journey-celebrating', 'journey-complete');
+        this.car?.classList.remove('door-open');
+        this.trophy?.classList.remove('lifted');
+        this.odysseyTitle?.classList.remove('visible');
+        this.hero?.setAttribute('opacity', '0');
+        this.hero?.classList.remove('exiting', 'arrived');
+        if (this.confettiEl) this.confettiEl.innerHTML = '';
+        if (this.fireworksEl) this.fireworksEl.innerHTML = '';
+        document.getElementById('beyond')?.classList.remove('journey-reveal-next');
+    }
+
+    startRoadRenderLoop() {
+        if (this.roadRaf || !this.pathDraw || !this.pathLength || this.reducedMotion) return;
+        const tick = () => {
+            const delta = this.targetLength - this.carLength;
+            const nearTarget = Math.abs(delta) < 0.35;
+            this.carLength = nearTarget ? this.targetLength : this.carLength + delta * 0.22;
+            if (this.car && this.car.getAttribute('opacity') !== '0') {
+                this.setCarAtLength(this.carLength);
+            }
+            if (!nearTarget) {
+                this.roadRaf = requestAnimationFrame(tick);
+            } else {
+                this.roadRaf = null;
+            }
+        };
+        this.roadRaf = requestAnimationFrame(tick);
+    }
+
+    async playTimedFinale() {
+        if (this.finaleStarted || this.reducedMotion) return;
+        const runId = ++this.finaleRunId;
+        this.finaleStarted = true;
+        const lastLen = this.nodeLengths[this.nodeLengths.length - 1] || this.pathLength;
+        this.targetLength = lastLen;
+        this.carLength = lastLen;
+        this.setCarAtLength(lastLen);
+        this.finale?.classList.add('visible');
+        this.hero?.setAttribute('opacity', '0');
+        this.hero?.classList.remove('exiting', 'arrived');
+
+        await this.delay(120);
+        if (runId !== this.finaleRunId) return;
+        this.car?.classList.add('parked');
+        this.car?.classList.add('door-open');
+
+        await this.delay(260);
+        if (runId !== this.finaleRunId) return;
+
+        this.section?.classList.add('journey-celebrating');
+        this.trophy?.classList.add('lifted');
+        this.spawnConfetti(window.innerWidth <= 640 ? 36 : 56);
+        this.spawnFireworks();
+        await this.delay(300);
+        if (runId !== this.finaleRunId) return;
+        this.odysseyTitle?.classList.add('visible');
+        this.section?.classList.add('journey-complete');
+        this.finaleComplete = true;
+        document.getElementById('beyond')?.classList.add('journey-reveal-next');
     }
 
     renderTimeline() {
@@ -664,6 +849,7 @@ class JourneyCinema {
                 <div class="journey-node" aria-hidden="true"><span class="node-pulse"></span></div>`;
             this.timeline.appendChild(stop);
         });
+        this.stops = [...this.timeline.querySelectorAll('.journey-stop')];
     }
 
     getLayoutPoint(el, x = 0, y = 0) {
@@ -724,19 +910,32 @@ class JourneyCinema {
         let d = `M ${points[0].x} ${points[0].y}`;
         const nodeLengths = [0];
         let cumulative = 0;
+        const isWide = this.container.offsetWidth > 760;
+        const maxHandle = isWide ? 300 : 145;
+        const minHandle = isWide ? 90 : 48;
         for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1], curr = points[i];
-            const dy = Math.max(120, Math.abs(curr.y - prev.y));
-            const isWide = this.container.offsetWidth > 760;
-            const curveReach = Math.min(isWide ? 360 : 180, this.container.offsetWidth * (isWide ? 0.32 : 0.34));
-            const turn = curr.x > prev.x ? 1 : -1;
-            const cp1 = { x: prev.x + curveReach * turn, y: prev.y + dy * (isWide ? 0.12 : 0.22) };
-            const cp2 = { x: curr.x - curveReach * turn, y: curr.y - dy * (isWide ? 0.12 : 0.22) };
+            const p0 = points[Math.max(0, i - 2)];
+            const prev = points[i - 1];
+            const curr = points[i];
+            const p3 = points[Math.min(points.length - 1, i + 1)];
+            const segment = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+            const handle = this.clamp(segment * 0.34, minHandle, maxHandle);
+            const t1 = this.normalizedTangent(p0, curr, isWide ? 0.58 : 0.42);
+            const t2 = this.normalizedTangent(prev, p3, isWide ? 0.58 : 0.42);
+            const cp1 = { x: prev.x + t1.x * handle, y: prev.y + t1.y * handle };
+            const cp2 = { x: curr.x - t2.x * handle, y: curr.y - t2.y * handle };
             d += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${curr.x} ${curr.y}`;
-            cumulative += this.cubicLength(prev, cp1, cp2, curr);
+            cumulative += this.cubicLength(prev, cp1, cp2, curr, 34);
             nodeLengths.push(cumulative);
         }
         return { d, nodeLengths };
+    }
+
+    normalizedTangent(from, to, xWeight = 0.5) {
+        const dx = (to.x - from.x) * xWeight;
+        const dy = to.y - from.y;
+        const len = Math.hypot(dx, dy) || 1;
+        return { x: dx / len, y: dy / len };
     }
 
     buildRoad() {
@@ -755,35 +954,52 @@ class JourneyCinema {
             this.syncNodeToDoor(s, p);
             return p;
         });
+        this.nodePoints = points;
         const { d, nodeLengths } = this.buildRoadPath(points);
         if (!d) return;
 
         this.pathBed?.setAttribute('d', d);
         this.pathDash?.setAttribute('d', d);
+        this.pathGlow?.setAttribute('d', d);
         this.pathDraw.setAttribute('d', d);
         this.pathLength = this.pathDraw.getTotalLength();
         this.pathDraw.style.strokeDasharray = `${this.pathLength} ${this.pathLength}`;
         this.pathDraw.style.strokeDashoffset = this.pathLength;
+        if (this.pathGlow) {
+            this.pathGlow.style.strokeDasharray = `${this.pathLength} ${this.pathLength}`;
+            this.pathGlow.style.strokeDashoffset = this.pathLength;
+        }
         const scale = nodeLengths.length ? this.pathLength / nodeLengths[nodeLengths.length - 1] : 1;
         this.nodeLengths = nodeLengths.map(l => l * scale);
 
         if (this.drawnLength > 0) {
             this.pathDraw.style.strokeDashoffset = this.pathLength - this.drawnLength;
+            if (this.pathGlow) this.pathGlow.style.strokeDashoffset = this.pathLength - this.drawnLength;
             this.setCarAtLength(this.drawnLength);
+            this.targetLength = this.drawnLength;
+            this.carLength = this.drawnLength;
         }
     }
 
     getAngleAtLength(length) {
-        const p1 = this.pathDraw.getPointAtLength(Math.max(0, length - 2));
-        const p2 = this.pathDraw.getPointAtLength(Math.min(this.pathLength, length + 2));
+        const sample = window.innerWidth <= 640 ? 8 : 12;
+        const p1 = this.pathDraw.getPointAtLength(Math.max(0, length - sample));
+        const p2 = this.pathDraw.getPointAtLength(Math.min(this.pathLength, length + sample));
         return Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
     }
 
     setCarAtLength(length) {
         if (!this.car || !this.pathDraw) return;
         const p = this.pathDraw.getPointAtLength(length);
-        const angle = this.getAngleAtLength(length);
-        this.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
+        const rawAngle = this.getAngleAtLength(length);
+        if (length < 1 && this.carLength < 1) this.carAngle = rawAngle;
+        let angleDelta = rawAngle - this.carAngle;
+        while (angleDelta > 180) angleDelta -= 360;
+        while (angleDelta < -180) angleDelta += 360;
+        this.carAngle += angleDelta * 0.2;
+        const speed = Math.min(1, Math.abs(this.targetLength - this.carLength) / 34);
+        const lean = this.clamp(angleDelta / 38, -2.5, 2.5) * speed;
+        this.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${this.carAngle + lean})`);
     }
 
     delay(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -806,12 +1022,17 @@ class JourneyCinema {
         });
         if (this.pathDraw && this.pathLength) {
             this.pathDraw.style.strokeDashoffset = '0';
+            if (this.pathGlow) this.pathGlow.style.strokeDashoffset = '0';
             this.drawnLength = this.pathLength;
+            this.targetLength = this.pathLength;
+            this.carLength = this.pathLength;
         }
         this.car?.setAttribute('opacity', '0');
         this.finale?.classList.add('visible');
+        this.trophy?.classList.add('lifted');
         this.odysseyTitle?.classList.add('visible');
         this.section?.classList.add('journey-complete');
+        this.finaleComplete = true;
     }
 
     async playJourney() {
@@ -932,21 +1153,46 @@ class JourneyCinema {
         });
     }
 
-    spawnConfetti() {
+    spawnConfetti(count = 48) {
         if (!this.confettiEl) return;
-        const colors = ['#c4a45a', '#d4b86a', '#4de8ff', '#e8d5a3', '#9b6dff'];
-        for (let i = 0; i < 40; i++) {
+        const colors = ['#c4a45a', '#d4b86a', '#4de8ff', '#e8d5a3', '#ffffff', '#ffdd77'];
+        for (let i = 0; i < count; i++) {
             const piece = document.createElement('span');
             piece.className = 'confetti-piece';
             piece.style.cssText = `
                 left:${Math.random() * 100}%;
+                --drift:${(Math.random() * 220 - 110).toFixed(1)}px;
+                --spin:${Math.random() > 0.5 ? 1 : -1};
                 background:${colors[i % colors.length]};
-                animation-delay:${Math.random() * 0.4}s;
-                animation-duration:${0.8 + Math.random() * 0.6}s;
+                animation-delay:${Math.random() * 0.45}s;
+                animation-duration:${1.05 + Math.random() * 0.95}s;
             `;
             this.confettiEl.appendChild(piece);
-            setTimeout(() => piece.remove(), 2000);
+            setTimeout(() => piece.remove(), 2600);
         }
+    }
+
+    spawnFireworks() {
+        if (!this.fireworksEl) return;
+        this.fireworksEl.innerHTML = '';
+        const bursts = window.innerWidth <= 640 ? 3 : 5;
+        for (let i = 0; i < bursts; i++) {
+            const burst = document.createElement('span');
+            burst.className = 'firework-burst';
+            burst.style.cssText = `
+                left:${12 + Math.random() * 76}%;
+                top:${8 + Math.random() * 48}%;
+                animation-delay:${(i * 0.14 + Math.random() * 0.12).toFixed(2)}s;
+            `;
+            this.fireworksEl.appendChild(burst);
+            for (let j = 0; j < 10; j++) {
+                const spark = document.createElement('i');
+                spark.style.setProperty('--angle', `${j * 36}deg`);
+                spark.style.setProperty('--distance', `${34 + Math.random() * 34}px`);
+                burst.appendChild(spark);
+            }
+        }
+        setTimeout(() => { if (this.fireworksEl) this.fireworksEl.innerHTML = ''; }, 2600);
     }
 }
 
