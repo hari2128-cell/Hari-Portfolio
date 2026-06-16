@@ -728,10 +728,10 @@ class JourneyCinema {
             const prev = points[i - 1], curr = points[i];
             const dy = Math.max(120, Math.abs(curr.y - prev.y));
             const isWide = this.container.offsetWidth > 760;
-            const curveReach = Math.min(isWide ? 360 : 120, this.container.offsetWidth * (isWide ? 0.32 : 0.18));
+            const curveReach = Math.min(isWide ? 360 : 180, this.container.offsetWidth * (isWide ? 0.32 : 0.34));
             const turn = curr.x > prev.x ? 1 : -1;
-            const cp1 = { x: prev.x + curveReach * turn, y: prev.y + dy * 0.12 };
-            const cp2 = { x: curr.x - curveReach * turn, y: curr.y - dy * 0.12 };
+            const cp1 = { x: prev.x + curveReach * turn, y: prev.y + dy * (isWide ? 0.12 : 0.22) };
+            const cp2 = { x: curr.x - curveReach * turn, y: curr.y - dy * (isWide ? 0.12 : 0.22) };
             d += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${curr.x} ${curr.y}`;
             cumulative += this.cubicLength(prev, cp1, cp2, curr);
             nodeLengths.push(cumulative);
@@ -894,7 +894,7 @@ class JourneyCinema {
         if (trophyRect && this.hero) {
             const tx = trophyRect.left - containerRect.left + trophyRect.width / 2;
             const ty = trophyRect.top - containerRect.top + trophyRect.height / 2 - 20;
-            await this.animateHeroWalk(carPt.x - 5, carPt.y + 2, tx, ty, 900);
+            await this.animateHeroWalk(carPt.x - 5, carPt.y + 2, tx, ty, 650);
         }
 
         this.finale?.classList.add('visible');
