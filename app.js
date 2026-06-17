@@ -337,7 +337,7 @@ class IdentityAnimator {
                     current = target;
                     clearInterval(interval);
                 }
-                el.textContent = isDecimal ? current.toFixed(1) : Math.floor(current) + (target > 9 ? '+' : '');
+                el.textContent = isDecimal ? current.toFixed(2) : Math.floor(current) + (target > 9 ? '+' : '');
             }, 30);
         });
         this.observer.disconnect();
